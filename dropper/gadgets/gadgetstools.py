@@ -126,7 +126,7 @@ class GadgetTools():
         """Return a chainable chunk that return to address and set up args or registers as if a function was called with args.
 
         Args:
-        
+
         args (list): the list of args to setup as function arguments
         address (int): the address where to return
 
@@ -134,8 +134,8 @@ class GadgetTools():
         if self.arch_info.architecture_size == 64:
             if len(args) > 6:
                 raise BaseException("chunk for calling a function whit more of six args isn't implemented")
-                
-            args_regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9'] 
+
+            args_regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
             regs_values = {args_regs[i] : a for i, a in enumerate(args)}
             regs_c = self.regset.get_clobber_free_chunk(regs_values)
             ret_c = PayloadChunk("", self.arch_info, address)
