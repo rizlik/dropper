@@ -19,7 +19,7 @@ from barf.analysis.codeanalyzer import CodeAnalyzer
 from dropper.chunks.payloadchunk import RegSetChunk
 from dropper.chunks.payloadchunk import ArithmeticMemSetChunk
 from dropper.chunks.payloadchunk import PayloadChunk
-from dropper.chunks.payloadchunk import MemSetLibcRead32
+from dropper.chunks.payloadchunk import RetToAddress32
 from dropper.chunks.payloadchunk import StackSlideChunk
 
 from dropper.gadgets.regset import RegSet
@@ -121,23 +121,30 @@ class GadgetTools():
         #TODO not use only pop gadgets and chain more slide if we wan't longer slide
         return self.regset.get_slide_stack_chunk(slide)
 
-    def get_execve_chunk(self, args, execve_address):
-        if self.arch_info.architecture_size == 64:
-            regs_values = {'rdi' : args[0], 'rsi' : args[1], 'rdx' : args[2]}
-            regs_c = self.regset.get_clobber_free_chunk(regs_values)
-            execve_c = PayloadChunk("", self.arch_info, execve_address)
-            return PayloadChunk.get_general_chunk([regs_c, execve_c])
 
+    def get_ret_func_chunk(self, args, address):
+        """Return a chainable chunk that return to address and set up args or registers as if a function was called with args.
+
+        Args:
+        
+        args (list): the list of args to setup as function arguments
+        address (int): the address where to return
+
+        """
+        if self.arch_info.architecture_size == 64:
+            if len(args) > 6:
+                raise BaseException("chunk for calling a function whit more of six args isn't implemented")
+                
+            args_regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9'] 
+            regs_values = {args_regs[i] : a for i, a in enumerate(args)}
+            regs_c = self.regset.get_clobber_free_chunk(regs_values)
+            ret_c = PayloadChunk("", self.arch_info, address)
+            return PayloadChunk.get_general_chunk([regs_c, ret_c])
 
         if self.arch_info.architecture_size == 32:
-            slide_chunk = self.regset.get_slide_stack_chunk(4 * 3)
-            pl_chunk = MemSetLibcRead32(args[1],
-                                        args[0],
-                                        args[2],
-                                        execve_address,
-                                        self.arch_info)
-
-        return PayloadChunk.get_general_chunk([pl_chunk, slide_chunk])
+            slide_c = self.regset.get_slide_stack_chunk(len(args) * 4)
+            ret_c = RetToAddress32(args, address, self.arch_info)
+            return PayloadChunk.get_general_chunk([ret_c, slide_c])
 
     def get_mem_set_libc_read_chunk(self, location, fd, size, read_address):
         if self.arch_info.architecture_size == 64:

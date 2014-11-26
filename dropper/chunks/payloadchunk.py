@@ -149,12 +149,10 @@ class StackSlideChunk(PayloadChunk):
         return pl
 
 
-class MemSetLibcRead32(PayloadChunk):
-    def __init__(self, location, fd, size, address, arch_info):
-        self.location = location
+class RetToAddress32(PayloadChunk):
+    def __init__(self, args, address, arch_info):
+        self.args = args
         self.address = address
-        self.size = size
-        self.fd = fd
         self.arch_info = arch_info
 
         self.next_ret_at_end = False
@@ -163,9 +161,9 @@ class MemSetLibcRead32(PayloadChunk):
 
     def get_payload(self):
 
-        pl = struct.pack("<I", self.fd)
-        pl += struct.pack("<I", self.location)
-        pl += struct.pack("<I", self.size)
+        pl = ""
+        for a in self.args:
+            pl += struct.pack("<I", a)
 
         return pl
 
