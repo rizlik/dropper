@@ -93,11 +93,7 @@ class RegSet():
     def _sort_by_instr_length(self, gadgets):
         return sorted(gadgets, key = lambda x : len(x.instrs))
 
-    def get_chunk(self, reg, value):
-        pass
-
-
-    def get_clobber_free_chunk(self, regs_values):
+    def get_chunk(self, regs_values):
 
         #naive greedy TODO implement better searching (planning? smt?)
         selected = []

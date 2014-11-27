@@ -137,7 +137,7 @@ class GadgetTools():
 
             args_regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
             regs_values = {args_regs[i] : a for i, a in enumerate(args)}
-            regs_c = self.regset.get_clobber_free_chunk(regs_values)
+            regs_c = self.regset.get_chunk(regs_values)
             ret_c = PayloadChunk("", self.arch_info, address)
             return PayloadChunk.get_general_chunk([regs_c, ret_c])
 
@@ -380,7 +380,7 @@ class GadgetTools():
         msg_chunk = ArithmeticMemSetChunk(ms_g, stack_at_end, self.arch_info)
 
         for i, param in enumerate(params):
-            c = self.regset.get_clobber_free_chunk({ms_g.sources[0].name : param[0],
+            c = self.regset.get_chunk({ms_g.sources[0].name : param[0],
                                                     ms_g.destination[0].name : param[1]})
             if i == 0:
                 pl = PayloadChunk.get_general_chunk([c, msg_chunk])

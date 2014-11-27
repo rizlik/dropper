@@ -278,9 +278,9 @@ class ArithmeticStore:
         ams_chunk = ArithmeticMemSetChunk(ams_g, esp_at_end, self.gts.arch_info)
         pl = None
         for i, param in enumerate(params):
-            c = self.gts.regset.get_clobber_free_chunk({ams_g.destination[0].name : param[1],
-                                                    ams_g.sources[2].name: param[3]
-                                            })
+            c = self.gts.regset.get_chunk({ams_g.destination[0].name : param[1],
+                                           ams_g.sources[2].name: param[3]
+                                           })
             if i == 0:
                 pl = PayloadChunk.get_general_chunk([c, ams_chunk])
             else:
