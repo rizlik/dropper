@@ -94,7 +94,8 @@ class RegSet():
         return sorted(gadgets, key = lambda x : len(x.instrs))
 
     def get_chunk(self, regs_values):
-
+        """Return a chunk that set, for each k,v in regs_values, the reg k with value v (if possible).
+        """
         #naive greedy TODO implement better searching (planning? smt?)
         selected = []
         regs_covered = set()
@@ -108,15 +109,21 @@ class RegSet():
 
             shortest = self._sort_by_stack_offset(self.by_reg[reg])
             shortest = self._sort_by_instr_length(shortest)[0]
-
-            for i, g in enumerate(selected):
-                mism = [reg for reg in g._stack_indexes if reg in regs_values and reg not in shortest._stack_indexes]
-                if len(mism) == 0:
-                    selected.pop(i)
-
             selected.append(shortest)
             for k in shortest._stack_indexes.keys():
                 regs_covered.add(k)
+
+            scopy = list(selected)
+            for i, g in enumerate(scopy):
+                if g == shortest:
+                    continue
+
+                u_minus_g = [reg for g_ in selected for reg in g_._stack_indexes if g_ != g]
+                mism = [reg for reg in g._stack_indexes if reg in regs_values and reg not in u_minus_g]
+                if len(mism) == 0:
+                    selected.pop(i)
+
+
 
 
 
