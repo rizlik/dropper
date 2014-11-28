@@ -25,6 +25,7 @@ from dropper.chunks.payloadchunk import StackSlideChunk
 from dropper.gadgets.regset import RegSet
 from dropper.gadgets.arithmeticstore import ArithmeticStore
 from dropper.gadgets.clearcarryflag import CCFlag
+from dropper.gadgets.memorystore import MemoryStore
 
 import dropper.utils as utils
 import logging
@@ -62,6 +63,7 @@ class GadgetTools():
         self.regset = RegSet(self)
         self.ccf = CCFlag(self)
         self.ams = ArithmeticStore(self)
+        self.memstr = MemoryStore(self)
 
         self.reil_translator = X86Translator(architecture_mode=self.arch_info.architecture_mode,
                                                   translation_mode=FULL_TRANSLATION)
@@ -166,123 +168,6 @@ class GadgetTools():
     def build_mem_add(self, location, offset, size, mem_pre = None):
         return self.ams.get_memory_add_chunk(location, offset, size, mem_pre)
 
-    def _verify_mem_store(self, g):
-        #we don't want push {something} like gadgets here
-        if g.destination[0].name == 'rsp':
-            logging.info("Refusing gadget 0x%08x: push like gadget " % g.address)
-            return False, 0
-
-        #we don't want mov[rip] like gadgets here
-        if g.destination[0].name == 'rip':
-            logging.info("Refusing gadget 0x%08x: use a rip relative location " % g.address)
-            return False, 0
-
-        for r in [g.destination[0], g.sources[0]]:
-            if not self.regset.can_control_reg(r.name):
-                logging.info("Refusing gadget 0x%08x: can't control reg %s  " % (g.address, r.name))
-                return False, 0
-
-
-        location = random.randint(0, 2 ** self.arch_info.address_size - 1)
-        value = random.randint(0, 2 ** self.arch_info.register_size[g.sources[0].name])
-
-        valid, src, dst = self._mem_set_get_param(g, location, value)
-
-        if valid == False:
-            return False, 0
-
-        valid = self._mem_set_is_valid(g, src, dst, location, value)
-        if valid == False:
-            logging.info("Refusing gadgets 0x%08x: not valid " % g.address)
-            return False, 0
-
-        size = self.arch_info.register_size[g.sources[0].name]
-        mem_side_effects, stack_at_end = self._mem_set_side_effects(g,
-                                                                src,
-                                                                dst,
-                                                                location,
-                                                                size)
-        if len(mem_side_effects) > 0:
-            logging.info("Refusing gadget 0x%08x: memories side effects " % (g.address))
-            return False, 0
-
-
-        return True, stack_at_end
-
-    def _mem_set_get_param(self, g, location, value):
-
-        self.code_analyzer.reset(full=True)
-        for ir in g.get_ir_instrs():
-            self.code_analyzer.add_instruction(ir)
-
-        size = self.arch_info.register_size[g.sources[0].name]
-
-        stack_reg = 'esp'
-        if (self.arch_info.architecture_size == 64):
-            stack_reg = 'rsp'
-
-
-        src_reg = self.code_analyzer.get_register_expr(g.sources[0].name, mode='pre')
-        dst_reg = self.code_analyzer.get_register_expr(g.destination[0].name, mode='pre')
-        stack = self.code_analyzer.get_register_expr(stack_reg, mode='pre')
-        mem_pre = self.code_analyzer.get_memory_expr(location, size/8, mode='pre')
-        mem_post = self.code_analyzer.get_memory_expr(location, size/8, mode='post')
-
-        ac = self.code_analyzer.get_immediate_expr(value & (2**size-1), size)
-        rv = random.randint(0, 2**size-1)
-        random_value = self.code_analyzer.get_immediate_expr(rv, size)
-
-        rv = random.randint(0, 2 ** self.arch_info.address_size -1)
-        random_stack = self.code_analyzer.get_immediate_expr(rv, self.arch_info.address_size)
-
-        constrs = []
-        constrs.append(mem_pre == random_value)
-        constrs.append(mem_post == ac)
-        constrs.append(stack == random_stack)
-
-        self.code_analyzer.set_preconditions(constrs)
-        if self.code_analyzer.check() == 'sat':
-            src = self.code_analyzer.get_expr_value(src_reg)
-            dst = self.code_analyzer.get_expr_value(dst_reg)
-            return True, src, dst
-
-        return False, 0, 0
-
-    def _mem_set_is_valid(self, g, src, dst, location, value):
-        self.code_analyzer.reset(full=True)
-        for ir in g.get_ir_instrs():
-            self.code_analyzer.add_instruction(ir)
-
-        size = self.arch_info.register_size[g.sources[0].name]
-        src_reg = self.code_analyzer.get_register_expr(g.sources[0].name, mode='pre')
-        dst_reg = self.code_analyzer.get_register_expr(g.destination[0].name, mode='pre')
-
-        mem_post = self.code_analyzer.get_memory_expr(location, size/8, mode='post')
-        ac = self.code_analyzer.get_immediate_expr(value & (2**size-1), size)
-
-        constrs = []
-        constrs.append(src_reg == src)
-        constrs.append(dst_reg == dst)
-        constrs.append(mem_post != ac)
-
-        if self.code_analyzer.check_constraints(constrs) != 'unsat':
-            return False
-
-        return True
-
-
-    def _mem_set_side_effects(self, g, src, dst, location, size):
-        self.emulator.reset()
-        regs_init = utils.make_random_regs_context(self.arch_info)
-        regs_init[g.destination[0].name] = dst
-        regs_init[g.sources[0].name] = src
-
-        mem_side_effects, stack_at_end = self.check_mem_side_effects_and_stack_end(g,
-                                                                                   regs_init,
-                                                                                   location,
-                                                                                   size)
-
-        return mem_side_effects, stack_at_end
 
     def check_mem_side_effects_and_stack_end(self, g, regs_init, location, size):
         stack_reg = 'esp'
@@ -317,74 +202,8 @@ class GadgetTools():
         if not GadgetType.StoreMemory in self.classified_gadgets:
             return
 
-        for g in self.classified_gadgets[GadgetType.StoreMemory]:
-            valid, stack = self._verify_mem_store(g)
-            num_instr = len(g.instrs)
-            if valid:
-                if num_instr not in self.mem_set_gadgets:
-                    self.mem_set_gadgets[num_instr] = []
-
-                self.mem_set_gadgets[num_instr].append((g, stack))
-
+        self.memstr.add(self.classified_gadgets[GadgetType.StoreMemory])
 
     def find_ccfs(self):
         self.ccf.add(self.gadgets.values())
 
-    def build_memory_write(self, location, raw_value):
-        keys = self.mem_set_gadgets.keys()
-        keys.sort()
-
-        if len(keys) == 0:
-            raise BaseException("Trying to build a memory write chain without memory write gadget")
-            return
-
-        ms_g, stack_at_end = self.mem_set_gadgets[keys[0]][0]
-        size = len(raw_value)
-        op_size = self.arch_info.register_size[ms_g.sources[0].name]
-        op_size_bytes = op_size / 8
-
-
-        n_iter = size / op_size_bytes
-
-        #TODO search for memory gadget that make len(raw_value) 0 module op_size
-        if size % op_size_bytes != 0:
-            n_iter += 1
-
-        curr = 0
-        #TODO add 8 and 16
-        if op_size == 32:
-            fmt = "<I"
-        if op_size == 64:
-            fmt = "<Q"
-
-        params = []
-
-        for i in xrange(n_iter):
-            value = raw_value[curr : curr + op_size_bytes]
-
-            if len(value) < op_size_bytes:
-                padding = op_size_bytes - len(value)
-                value += "\x00" * padding
-
-            value = struct.unpack(fmt, value)[0]
-            valid, src, dst = self._mem_set_get_param(ms_g, location, value)
-
-            curr += op_size / 8
-            location += op_size / 8
-            if not valid:
-                logging.info("Error trying to build memory_write_chunk. Skipping")
-                return
-
-            params.append((src, dst))
-
-        msg_chunk = ArithmeticMemSetChunk(ms_g, stack_at_end, self.arch_info)
-
-        for i, param in enumerate(params):
-            c = self.regset.get_chunk({ms_g.sources[0].name : param[0],
-                                                    ms_g.destination[0].name : param[1]})
-            if i == 0:
-                pl = PayloadChunk.get_general_chunk([c, msg_chunk])
-            else:
-                pl = PayloadChunk.get_general_chunk([pl, c, msg_chunk])
-
-        return pl

@@ -118,7 +118,7 @@ class dropper():
 
         #Try to write execve arguments in memory
         if self.can_control_fd == -1 or 'read' not in self.imports:
-            pl_mem = self.gts.build_memory_write(self.writeable_area, mem_args)
+            pl_mem = self.gts.memstr.get_chunk(self.writeable_area, mem_args)
         else:
             self.fd_payload = mem_args
             pl_mem = self.gts.get_ret_func_chunk([self.can_control_fd, self.writeable_area, len(mem_args)],
@@ -186,7 +186,7 @@ class dropper():
     def save_state(self):
         return (self.gts.gadgets,
                 self.gts.classified_gadgets,
-                self.gts.mem_set_gadgets,
+                self.gts.memstr.by_addr,
                 self.gts.regset.by_addr,
                 self.gts.regset.by_reg,
                 self.gts.ccf.by_addr,
@@ -197,7 +197,7 @@ class dropper():
     def restore_state(self, state):
         (self.gts.gadgets,
          self.gts.classified_gadgets,
-         self.gts.mem_set_gadgets,
+         self.gts.memstr.by_addr,
          self.gts.regset.by_addr,
          self.gts.regset.by_reg,
          self.gts.ccf.by_addr,
