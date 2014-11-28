@@ -12,6 +12,34 @@ It is in a very early stage of development and without documentation
 It uses the BARF framework [0] under the hood (but actually it works only
 with the version of my fork[1]).
 
+Dependencies
+============
+
+- BARF (actually this fork[1])
+- Pyelftools
+
+
+Example
+=======
+
+
+from dropper import dropper
+
+
+dr = dropper.dropper('/bin/ls')
+dr.analyze_all()
+dr.add_shared_object('/lib/x86_64-linux-gnu/libc.so.6')
+dr.set_function_for_address_resolving('strrchr')
+pl = dr.build_spawn_shell_payload()
+
+TODO
+====
+
+* It's very slow
+* Analyze other categories of gadgets
+* Better chain generation
+* Use planning as rop chain generation strategy!
+
 Feel free con contact me for info
 
 rizlik@inventati.org
