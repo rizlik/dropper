@@ -93,6 +93,17 @@ class RegSet():
     def _sort_by_instr_length(self, gadgets):
         return sorted(gadgets, key = lambda x : len(x.instrs))
 
+    def _reg_or_child_in(self, r, regs):
+        if r in regs:
+            return True
+
+        rm = self.gts.arch_info.register_access_mapper()
+        for _r in regs:
+            if _r in rm and rm[_r][0] == r:
+                return True
+
+        return False
+
     def get_chunk(self, regs_values):
         """Return a chunk that set, for each k,v in regs_values, the reg k with value v (if possible).
         """
@@ -119,12 +130,9 @@ class RegSet():
                     continue
 
                 u_minus_g = [reg for g_ in selected for reg in g_._stack_indexes if g_ != g]
-                mism = [reg for reg in g._stack_indexes if reg in regs_values and reg not in u_minus_g]
+                mism = [reg for reg in g._stack_indexes if self._reg_or_child_in(reg, regs_values) and not self._reg_or_child_in(reg, u_minus_g)]
                 if len(mism) == 0:
                     selected.pop(i)
-
-
-
 
 
         chunks = []

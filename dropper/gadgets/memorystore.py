@@ -52,7 +52,7 @@ class MemoryStore():
         g._stack_offset = stack_at_end
         self.by_addr[g.address] = g
         return True
-        
+
     def _get_params(self, g, location, value):
         self.gts.code_analyzer.reset(full=True)
         for ir in g.get_ir_instrs():
@@ -126,19 +126,28 @@ class MemoryStore():
 
         return mem_side_effects, stack_at_end
 
+    def _calculate_stack_offset(self, g, size):
+        regs = {g.sources[0].name: 0,
+                g.destination[0].name: 1}
+
+        c = self.gts.regset.get_chunk(regs)
+        op_size = self.gts.arch_info.register_size[g.sources[0].name]
+        n_iter = size / op_size / 8
+
+        return (len(PayloadChunk.chain([c])) + g._stack_offset) * n_iter
+
     def get_chunk(self, location, raw_value):
         """ Return a chunk for writing raw_value in location
         """
 
-        #TODO choose the best gadget
-        keys = self.by_addr.keys()
-        keys.sort()
 
-        if len(keys) == 0:
+        by_stack_offset = sorted(self.by_addr.values(), key = lambda x : self._calculate_stack_offset(x, len(raw_value)))
+
+        if len(by_stack_offset) == 0:
             raise BaseException("Trying to build a memory write chain without memory write gadget")
             return
 
-        ms_g = self.by_addr[keys[0]]
+        ms_g = by_stack_offset[0]
         size = len(raw_value)
         op_size = self.gts.arch_info.register_size[ms_g.sources[0].name]
         op_size_bytes = op_size / 8
