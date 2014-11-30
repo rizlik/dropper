@@ -34,7 +34,7 @@ TODO
 * It's very slow
 * Analyze other categories of gadgets
 * Better chain generation
-* Use planning as rop chain generation strategy!
+* Use planning as rop chain generation strategy! (check planning branch)
 
 Feel free con contact me for info
 
