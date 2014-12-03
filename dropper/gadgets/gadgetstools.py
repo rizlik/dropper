@@ -114,7 +114,7 @@ class GadgetTools():
 
         self.emulator.execute_lite(g.get_ir_instrs(), regs_init)
 
-        return 'cf' in self.emulator.registers
+        return 'eflags' in self.emulator.registers
 
 
     def find_arithmetic_mem_set_gadgets(self):
@@ -144,7 +144,6 @@ class GadgetTools():
             ret_c = PayloadChunk("", self.arch_info, address)
             return PayloadChunk.get_general_chunk([regs_c, ret_c])
 
-        pdb.set_trace()
         if self.arch_info.architecture_size == 32:
             slide_c = self.regset.get_slide_stack_chunk(len(args) * 4)
             print slide_c
