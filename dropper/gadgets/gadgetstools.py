@@ -1,6 +1,7 @@
 from elftools.elf import elffile
 
 from barf.arch.x86.x86base import X86RegisterOperand
+from barf.arch.x86.x86instruction import Ret
 from barf.analysis.gadget import GadgetFinder
 from barf.analysis.gadget import GadgetType
 from barf.arch.x86.x86disassembler import X86Disassembler
@@ -31,7 +32,6 @@ import dropper.utils as utils
 import logging
 import random
 import struct
-import pdb
 
 class GadgetTools():
     def __init__ (self, binary):
@@ -85,6 +85,12 @@ class GadgetTools():
                 logging.info("searching gadgets in section " + s.name + "...")
 
                 for g in gfinder.find(base, base + sz - 1, max_instr, max_bytes):
+                    ret = g.instrs[-1].asm_instr
+                    if not isinstance(ret, Ret):
+                        continue
+                    if len(ret.operands) > 0 and ret.operands[0].immediate > 0x10:
+                        continue
+
                     self.gadgets[g.address] = g
 
                 logging.info("found {0} gadgets".format(len(self.gadgets)))
