@@ -27,12 +27,12 @@ class CCFlag():
 
     def _analyze(self, g):
         self.gts.code_analyzer.reset(full=True)
-        ir_instrs = [self.gts.reil_translator.translate(i.asm_instr)[0] for i in g.instrs] 
+        ir_instrs = [ir for i in g.instrs for ir in self.gts.reil_translator.translate(i.asm_instr)] 
         for ir in ir_instrs:
             self.gts.code_analyzer.add_instruction(ir)
 
-        zero = self.gts.code_analyzer.get_immediate_expr(0, 8)
-        uno = self.gts.code_analyzer.get_immediate_expr(1, 8)
+        zero = self.gts.code_analyzer.get_immediate_expr(0, 1)
+        uno = self.gts.code_analyzer.get_immediate_expr(1, 1)
 
         cf = self.gts.code_analyzer.get_register_expr('cf', mode='pre')
         cf_post = self.gts.code_analyzer.get_register_expr('cf', mode='post')

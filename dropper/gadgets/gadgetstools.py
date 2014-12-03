@@ -91,7 +91,8 @@ class GadgetTools():
 
     def classify_gadgets(self):
         #setting 0 to cf flags to avoid impossible random value invalidates results
-        self.classifier.set_reg_init({'cf': 0})
+
+        rflags =  self.classifier.set_reg_init({'cf': 0})
 
         for g in self.gadgets.itervalues():
             tgs = self.classifier.classify(g)
@@ -143,9 +144,12 @@ class GadgetTools():
             ret_c = PayloadChunk("", self.arch_info, address)
             return PayloadChunk.get_general_chunk([regs_c, ret_c])
 
+        pdb.set_trace()
         if self.arch_info.architecture_size == 32:
             slide_c = self.regset.get_slide_stack_chunk(len(args) * 4)
+            print slide_c
             ret_c = RetToAddress32(args, address, self.arch_info)
+            print ret_c
             return PayloadChunk.get_general_chunk([ret_c, slide_c])
 
     def get_mem_set_libc_read_chunk(self, location, fd, size, read_address):
@@ -194,7 +198,7 @@ class GadgetTools():
             if (sp and sn and vp != vn) or (sn and not sp) :
                 mem_side_effects.append(addr)
 
-        return mem_side_effects, cregs[stack_reg] - stack_base
+        return mem_side_effects, cregs[stack_reg] - stack_base - self.arch_info.address_size / 8
 
     def find_memory_store(self):
         self.mem_set_gadgets = {}

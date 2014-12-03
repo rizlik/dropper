@@ -10,7 +10,6 @@ class RegSet():
         self.gts = gts
         self.by_addr = {}
         self.by_reg = {}
-        pass
 
     def add(self, gadgets):
         for g in gadgets:
@@ -46,7 +45,7 @@ class RegSet():
             except:
                 return False, 0, 0
 
-            if asm_instr.mnemonic == 'pop':
+            if asm_instr.mnemonic == 'pop' or asm_instr.mnemonic == 'ret':
                 address += cmem.get_addresses()
             else:
                 for addr in cmem.get_addresses():
