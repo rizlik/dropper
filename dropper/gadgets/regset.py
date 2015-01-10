@@ -55,8 +55,9 @@ class RegSet():
             regs = cregs
             stack = regs[stack_reg]
 
-        if len(g._stack_indexes) > 0:
-            g._stack_offset = stack - stack_base
+            g._stack_offset = stack - stack_base - 8
+        if len(g._stack_indexes) > 0 and g._stack_offset < 200:
+
             self.by_addr[g.address] = g
             for r in g._stack_indexes:
                 if not r in self.by_reg:

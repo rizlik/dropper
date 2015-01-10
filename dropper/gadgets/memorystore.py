@@ -5,6 +5,7 @@ from dropper.chunks.payloadchunk import PayloadChunk
 from dropper.chunks.payloadchunk import ArithmeticMemSetChunk
 
 
+
 class MemoryStore():
     def __init__(self, gts):
         self.gts = gts
@@ -23,24 +24,33 @@ class MemoryStore():
         if g.destination[0].name == 'rip' or g.destination[0].name == 'eip':
             return False
 
+        #we don't want move[eax],ah like gadgets
+        d = g.destination[0].name
+        s = g.sources[0].name
+        rm = self.gts.arch_info.register_access_mapper()
+        if d in rm:
+            d = rm[d]
+        if s in rm:
+            s = rm[s]
+        if d == s:
+            return False
+
         for r in [g.destination[0], g.sources[0]]:
             if not self.gts.regset.can_control_reg(r.name):
                 return False
 
+        # if valid == False:
+        #     return False
 
-        location = random.randint(0, 2 ** self.gts.arch_info.address_size - 1)
-        value = random.randint(0, 2 ** self.gts.arch_info.register_size[g.sources[0].name])
-
-        valid, src, dst = self._get_params(g, location, value)
-
-        if valid == False:
-            return False
-
-        valid = self._is_valid(g, src, dst, location, value)
+        valid = self._is_valid(g)
         if valid == False:
             return False
 
         size = self.gts.arch_info.register_size[g.sources[0].name]
+        location = random.randint(0, 2 ** self.gts.arch_info.address_size - 1)
+        value = random.randint(0, 2 ** self.gts.arch_info.register_size[g.sources[0].name])
+
+        valid, src, dst = self._get_params(g, location, value)
         mem_side_effects, stack_at_end = self._side_effects(g,
                                                             src,
                                                             dst,
@@ -91,7 +101,7 @@ class MemoryStore():
 
         return False, 0, 0
 
-    def _is_valid(self, g, src, dst, location, value):
+    def _is_valid(self, g):
         self.gts.code_analyzer.reset(full=True)
         for ir in g.get_ir_instrs():
             self.gts.code_analyzer.add_instruction(ir)
@@ -99,14 +109,19 @@ class MemoryStore():
         size = self.gts.arch_info.register_size[g.sources[0].name]
         src_reg = self.gts.code_analyzer.get_register_expr(g.sources[0].name, mode='pre')
         dst_reg = self.gts.code_analyzer.get_register_expr(g.destination[0].name, mode='pre')
+        offset = self.gts.code_analyzer.get_immediate_expr(g.destination[1].immediate, g.destination[1].size)
 
-        mem_post = self.gts.code_analyzer.get_memory_expr(location, size/8, mode='post')
-        ac = self.gts.code_analyzer.get_immediate_expr(value & (2**size-1), size)
+        mem_post = self.gts.code_analyzer.get_memory_expr(dst_reg + offset, g.sources[0].size/8, mode='post')
+        #ac = self.gts.code_analyzer.get_immediate_expr(value & (2**size-1), size)
 
         constrs = []
-        constrs.append(src_reg == src)
-        constrs.append(dst_reg == dst)
-        constrs.append(mem_post != ac)
+
+        constrs.append(mem_post != src_reg)
+
+        #        constrs.append(
+        # constrs.append(src_reg == src)
+        # constrs.append(dst_reg == dst)
+        # constrs.append(mem_post != ac)
 
         if self.gts.code_analyzer.check_constraints(constrs) != 'unsat':
             return False
@@ -131,8 +146,11 @@ class MemoryStore():
                 g.destination[0].name: 1}
 
         c = self.gts.regset.get_chunk(regs)
-        op_size = self.gts.arch_info.register_size[g.sources[0].name]
-        n_iter = size / op_size / 8
+        op_size = self.gts.arch_info.register_size[g.sources[0].name] / 8
+        n_iter = size / op_size
+
+        if size % op_size != 0:
+            n_iter += 1
 
         return (len(PayloadChunk.chain([c])) + g._stack_offset) * n_iter
 
@@ -184,6 +202,8 @@ class MemoryStore():
                 return
 
             params.append((src, dst))
+
+
 
         msg_chunk = ArithmeticMemSetChunk(ms_g, ms_g._stack_offset, self.gts.arch_info)
 

@@ -186,7 +186,12 @@ class GadgetTools():
         stack_base = 0x50
         regs_init[stack_reg] = stack_base
 
-        cregs, mem_final = self.emulator.execute_lite(g.get_ir_instrs(), regs_init)
+        #TODO fix try and execute (zero div in mv where finding ccf)
+        try:
+            cregs, mem_final = self.emulator.execute_lite(g.get_ir_instrs(), regs_init)
+        except:
+            pass
+
         mem_side_effects = []
 
         for addr in mem_final.get_addresses():

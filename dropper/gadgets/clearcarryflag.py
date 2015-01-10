@@ -37,9 +37,8 @@ class CCFlag():
         cf = self.gts.code_analyzer.get_register_expr('cf', mode='pre')
         cf_post = self.gts.code_analyzer.get_register_expr('cf', mode='post')
         
-        self.gts.code_analyzer.set_postconditions([(cf <= uno),
-                                                   (cf >= zero),
-                                                   (cf_post != zero)])
+        self.gts.code_analyzer.set_postconditions([(cf == 1),
+                                                   (cf_post != 0)])
 
         if self.gts.code_analyzer.check() != 'unsat':
             return 

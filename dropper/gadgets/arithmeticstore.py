@@ -2,6 +2,8 @@ import dropper.utils as utils
 from dropper.chunks.payloadchunk import PayloadChunk
 from dropper.chunks.payloadchunk import ArithmeticMemSetChunk
 
+import pdb
+
 class ArithmeticStore:
     def __init__(self, gts):
         self.gts = gts
