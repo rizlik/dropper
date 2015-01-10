@@ -5,7 +5,6 @@ from elftools.elf import elffile
 import struct
 import pickle
 import math
-import time
 import pdb
 
 class dropper():
@@ -63,12 +62,7 @@ class dropper():
         print "Finding memory store gadgets.."
         self.gts.find_memory_store()
         print "Finding clear carry flag gadgets.."
-        time.sleep(1)
         self.gts.find_ccfs()
-
-        f = open('mv.cache','rb')
-        self.restore_state_from_file(f)
-        f.close()
 
         self.imports, self.imports_plt = self.get_imports()
 
