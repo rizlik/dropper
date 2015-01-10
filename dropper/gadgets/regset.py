@@ -10,7 +10,6 @@ class RegSet():
         self.gts = gts
         self.by_addr = {}
         self.by_reg = {}
-        pass
 
     def add(self, gadgets):
         for g in gadgets:
@@ -46,7 +45,7 @@ class RegSet():
             except:
                 return False, 0, 0
 
-            if asm_instr.mnemonic == 'pop':
+            if asm_instr.mnemonic == 'pop' or asm_instr.mnemonic == 'ret':
                 address += cmem.get_addresses()
             else:
                 for addr in cmem.get_addresses():
@@ -56,8 +55,9 @@ class RegSet():
             regs = cregs
             stack = regs[stack_reg]
 
-        if len(g._stack_indexes) > 0:
-            g._stack_offset = stack - stack_base
+            g._stack_offset = stack - stack_base - 8
+        if len(g._stack_indexes) > 0 and g._stack_offset < 200:
+
             self.by_addr[g.address] = g
             for r in g._stack_indexes:
                 if not r in self.by_reg:

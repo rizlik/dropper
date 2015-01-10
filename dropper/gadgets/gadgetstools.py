@@ -1,6 +1,7 @@
 from elftools.elf import elffile
 
 from barf.arch.x86.x86base import X86RegisterOperand
+from barf.arch.x86.x86instruction import Ret
 from barf.analysis.gadget import GadgetFinder
 from barf.analysis.gadget import GadgetType
 from barf.arch.x86.x86disassembler import X86Disassembler
@@ -31,7 +32,6 @@ import dropper.utils as utils
 import logging
 import random
 import struct
-import pdb
 
 class GadgetTools():
     def __init__ (self, binary):
@@ -85,13 +85,20 @@ class GadgetTools():
                 logging.info("searching gadgets in section " + s.name + "...")
 
                 for g in gfinder.find(base, base + sz - 1, max_instr, max_bytes):
+                    ret = g.instrs[-1].asm_instr
+                    if not isinstance(ret, Ret):
+                        continue
+                    if len(ret.operands) > 0 and ret.operands[0].immediate > 0x10:
+                        continue
+
                     self.gadgets[g.address] = g
 
                 logging.info("found {0} gadgets".format(len(self.gadgets)))
 
     def classify_gadgets(self):
         #setting 0 to cf flags to avoid impossible random value invalidates results
-        self.classifier.set_reg_init({'cf': 0})
+
+        rflags =  self.classifier.set_reg_init({'cf': 0})
 
         for g in self.gadgets.itervalues():
             tgs = self.classifier.classify(g)
@@ -113,7 +120,7 @@ class GadgetTools():
 
         self.emulator.execute_lite(g.get_ir_instrs(), regs_init)
 
-        return 'cf' in self.emulator.registers
+        return 'eflags' in self.emulator.registers
 
 
     def find_arithmetic_mem_set_gadgets(self):
@@ -145,7 +152,9 @@ class GadgetTools():
 
         if self.arch_info.architecture_size == 32:
             slide_c = self.regset.get_slide_stack_chunk(len(args) * 4)
+            print slide_c
             ret_c = RetToAddress32(args, address, self.arch_info)
+            print ret_c
             return PayloadChunk.get_general_chunk([ret_c, slide_c])
 
     def get_mem_set_libc_read_chunk(self, location, fd, size, read_address):
@@ -177,7 +186,12 @@ class GadgetTools():
         stack_base = 0x50
         regs_init[stack_reg] = stack_base
 
-        cregs, mem_final = self.emulator.execute_lite(g.get_ir_instrs(), regs_init)
+        #TODO fix try and execute (zero div in mv where finding ccf)
+        try:
+            cregs, mem_final = self.emulator.execute_lite(g.get_ir_instrs(), regs_init)
+        except:
+            pass
+
         mem_side_effects = []
 
         for addr in mem_final.get_addresses():
@@ -194,7 +208,7 @@ class GadgetTools():
             if (sp and sn and vp != vn) or (sn and not sp) :
                 mem_side_effects.append(addr)
 
-        return mem_side_effects, cregs[stack_reg] - stack_base
+        return mem_side_effects, cregs[stack_reg] - stack_base - self.arch_info.address_size / 8
 
     def find_memory_store(self):
         self.mem_set_gadgets = {}

