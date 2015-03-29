@@ -28,6 +28,10 @@ Example
     dr.set_function_for_address_resolving('strrchr')
     pl = dr.build_spawn_shell_payload()
 
+here a small demo video (classification and verification time were shorthen) 
+
+https://github.com/rizlik/dropper/blob/master/demo.mp4?raw=true
+
 TODO
 ====
 
